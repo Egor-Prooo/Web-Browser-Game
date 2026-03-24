@@ -12,6 +12,7 @@
  */
 
 import { FSM } from './fsm.js';
+import { Audio } from './audio.js';
 
 // ─── Tuning constants (easy to tweak) ─────────────────────────────────────────
 const CHASE_RANGE   = 150; // px — zombie starts chasing

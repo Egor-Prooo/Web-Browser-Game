@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zombie Survival Arena</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Game canvas (all rendering happens here) -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Sound toggle (always visible) -->
+  <button id="muteBtn">🔊 SFX ON</button>
+
+  <!-- ─── HUD (visible only during gameplay) ─────────────────────────── -->
+  <div id="hud">
+
+    <!-- Top bar: score / wave / kills -->
+    <div class="hud-top">
+      <div class="hud-cell">
+        <div class="hud-label">SCORE</div>
+        <div class="hud-value" id="scoreVal">0</div>
+      </div>
+      <div class="hud-cell">
+        <div class="hud-label">WAVE</div>
+        <div class="hud-value" id="waveVal">1</div>
+      </div>
+      <div class="hud-cell">
+        <div class="hud-label">KILLS</div>
+        <div class="hud-value" id="killsVal">0</div>
+      </div>
+    </div>
+
+    <!-- Health bar (bottom-left) -->
+    <div class="hud-health">
+      <div class="hud-label">HEALTH</div>
+      <div class="bar-wrap">
+        <div id="healthFill"></div>
+      </div>
+    </div>
+
+    <!-- Dash cooldown bar (bottom-right, above ammo) -->
+    <div class="hud-dash">
+      <span class="dash-label">DASH</span>
+      <div class="dash-bar-wrap">
+        <div id="dashFill" style="width:100%"></div>
+      </div>
+    </div>
+
+    <!-- Ammo counter (bottom-right) -->
+    <div class="hud-ammo">
+      <div id="reloadMsg" style="display:none">RELOADING</div>
+      <div id="ammoNum">10<span id="ammoMax"> /10</span></div>
+      <div class="hud-label">[R] RELOAD</div>
+    </div>
+
+  </div><!-- /#hud -->
+
+  <!-- Wave / event announcement banner (centred, auto-fades) -->
+  <div id="announce"></div>
+
+  <!-- ─── SCREENS ────────────────────────────────────────────────────── -->
+
+  <!-- MAIN MENU -->
+  <div id="menuScreen" class="screen">
+    <div class="screen-title">ZOMBIE<br>SURVIVAL<br>ARENA</div>
+    <div class="screen-sub">SURVIVE · KILL · REPEAT</div>
+    <div id="bestChip" style="display:none">BEST SCORE: <span id="bestVal">0</span></div>
+    <button class="btn" id="playBtn">▶ &nbsp; PLAY</button>
+    <div class="hint">
+      <span>WASD</span> MOVE &nbsp;·&nbsp; <span>MOUSE</span> AIM &nbsp;·&nbsp; <span>LMB</span> SHOOT<br>
+      <span>RMB</span> DASH &nbsp;·&nbsp; <span>R</span> RELOAD &nbsp;·&nbsp; <span>ESC</span> PAUSE
+    </div>
+  </div>
+
+  <!-- PAUSE -->
+  <div id="pauseScreen" class="screen hidden">
+    <div class="screen-title" style="font-size:clamp(2rem,6vw,4.5rem)">PAUSED</div>
+    <div class="screen-sub" style="margin-bottom:1.8rem">GAME IS PAUSED</div>
+    <button class="btn" id="resumeBtn">▶ &nbsp; RESUME</button>
+    <button class="btn red" id="quitBtn">✕ &nbsp; QUIT TO MENU</button>
+  </div>
+
+  <!-- GAME OVER -->
+  <div id="gameOverScreen" class="screen hidden">
+    <div class="screen-title"
+         style="font-size:clamp(2rem,6vw,4.5rem);
+                color:#e57373;
+                text-shadow:0 0 20px rgba(229,57,53,0.8)">DEAD.</div>
+    <div class="stat-block">
+      FINAL SCORE
+      <span class="big" id="finalScore">0</span>
+      WAVE <span id="finalWave">1</span> &nbsp;·&nbsp; KILLS <span id="finalKills">0</span>
+      <br>
+      <span class="new-best" id="newBest" style="display:none">★ &nbsp; NEW BEST SCORE!</span>
+    </div>
+    <button class="btn" id="restartBtn">↺ &nbsp; PLAY AGAIN</button>
+    <button class="btn"  id="menuBtn">⌂ &nbsp; MAIN MENU</button>
+  </div>
+
+  <!-- ─── Scripts (ES modules — order matters) ───────────────────────── -->
+  <!--
+    main.js is the entry point; it imports audio.js, enemy.js, player.js.
+    enemy.js imports fsm.js and audio.js.
+    player.js imports audio.js.
+    All files must be in the same /js/ folder.
+  -->
+  <script type="module" src="js/main.js"></script>
+
+</body>
+</html>

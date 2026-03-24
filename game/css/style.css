@@ -1,0 +1,321 @@
+/* ═══════════════════════════════════════════════════
+   style.css — Zombie Survival Arena
+   ═══════════════════════════════════════════════════ */
+
+/* ── Variables ──────────────────────────────────────────────────────────── */
+:root {
+    --green:   #4caf50;
+    --green-d: #2e7d32;
+    --red:     #e53935;
+    --amber:   #ffb300;
+    --text:    #c8e6c9;
+    --dim:     rgba(200, 230, 201, 0.45);
+    --bg:      #060a06;
+}
+
+/* ── Reset ──────────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+    margin:     0;
+    padding:    0;
+    box-sizing: border-box;
+}
+
+body {
+    background:  var(--bg);
+    overflow:    hidden;
+    font-family: 'Share Tech Mono', monospace;
+    color:       var(--text);
+    user-select: none;
+}
+
+/* ── Canvas ─────────────────────────────────────────────────────────────── */
+#gameCanvas {
+    display:  block;
+    position: fixed;
+    inset:    0;
+    cursor:   none; /* we draw our own crosshair */
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SCREENS  (menu / pause / game-over)
+══════════════════════════════════════════════════════════════════════════ */
+.screen {
+    position:        fixed;
+    inset:           0;
+    z-index:         20;
+    display:         flex;
+    flex-direction:  column;
+    align-items:     center;
+    justify-content: center;
+    background:      rgba(4, 8, 4, 0.92);
+    backdrop-filter: blur(6px);
+}
+
+.screen.hidden { display: none; }
+
+/* Title text */
+.screen-title {
+    font-family:   'Black Ops One', sans-serif;
+    font-size:     clamp(2.8rem, 9vw, 6.5rem);
+    line-height:   1;
+    color:         var(--text);
+    text-shadow:
+        0 0 20px  rgba(76, 175, 80, 0.9),
+        0 0 60px  rgba(76, 175, 80, 0.4),
+        0 0 120px rgba(76, 175, 80, 0.15);
+    letter-spacing: 1px;
+    text-align:     center;
+    margin-bottom:  0.25em;
+}
+
+/* Subtitle / tagline */
+.screen-sub {
+    font-size:     clamp(0.75rem, 1.6vw, 1.1rem);
+    letter-spacing: 6px;
+    color:          var(--dim);
+    margin-bottom:  2.5rem;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+.btn {
+    display:        block;
+    background:     transparent;
+    border:         1px solid var(--green);
+    color:          var(--green);
+    font-family:    'Share Tech Mono', monospace;
+    font-size:      clamp(1rem, 2vw, 1.4rem);
+    letter-spacing: 4px;
+    padding:        0.65em 2.4em;
+    cursor:         pointer;
+    min-width:      230px;
+    text-align:     center;
+    margin:         5px 0;
+    transition:     background 0.15s, box-shadow 0.15s, color 0.15s;
+}
+
+.btn:hover {
+    background:  var(--green);
+    color:       #000;
+    box-shadow:  0 0 24px rgba(76, 175, 80, 0.55);
+}
+
+.btn.red {
+    border-color: var(--red);
+    color:        var(--red);
+}
+
+.btn.red:hover {
+    background:  var(--red);
+    color:       #fff;
+    box-shadow:  0 0 24px rgba(229, 57, 53, 0.5);
+}
+
+/* ── Score / stat block (game-over screen) ──────────────────────────────── */
+.stat-block {
+    font-size:    clamp(0.8rem, 1.5vw, 1rem);
+    color:        var(--dim);
+    text-align:   center;
+    margin:       0.8rem 0 1.4rem;
+    line-height:  2;
+}
+
+.stat-block .big {
+    display:     block;
+    font-size:   clamp(2rem, 5vw, 3rem);
+    color:       var(--amber);
+    line-height: 1.1;
+}
+
+.stat-block .new-best {
+    color:          #ffd54f;
+    letter-spacing: 3px;
+}
+
+/* Controls hint (shown on main menu) */
+.hint {
+    margin-top:   1.8rem;
+    font-size:    clamp(0.65rem, 1.2vw, 0.82rem);
+    color:        var(--dim);
+    text-align:   center;
+    line-height:  2.2;
+    letter-spacing: 2px;
+}
+
+.hint span { color: var(--text); }
+
+/* Best-score chip on main menu */
+#bestChip {
+    font-size:      clamp(0.7rem, 1.4vw, 0.85rem);
+    color:          var(--dim);
+    letter-spacing: 2px;
+    margin-bottom:  1.2rem;
+}
+
+#bestChip span { color: var(--amber); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   HUD
+══════════════════════════════════════════════════════════════════════════ */
+#hud {
+    position:       fixed;
+    inset:          0;
+    pointer-events: none;
+    z-index:        10;
+    display:        none; /* shown only during gameplay */
+}
+
+#hud.on { display: block; }
+
+/* Top bar — score / wave / kills */
+.hud-top {
+    position:        absolute;
+    top:             0;
+    left:            0;
+    right:           0;
+    display:         flex;
+    justify-content: space-between;
+    align-items:     flex-start;
+    padding:         14px 20px 0;
+}
+
+.hud-cell   { text-align: center; }
+
+.hud-label {
+    font-size:      clamp(0.55rem, 1vw, 0.72rem);
+    letter-spacing: 4px;
+    color:          var(--dim);
+}
+
+.hud-value {
+    font-size:   clamp(1.4rem, 3vw, 2rem);
+    line-height: 1.1;
+}
+
+#scoreVal { color: var(--amber); }
+#waveVal  { color: var(--text);  }
+#killsVal { color: var(--red);   }
+
+/* Health bar */
+.hud-health {
+    position: absolute;
+    bottom:   22px;
+    left:     20px;
+}
+
+.bar-wrap {
+    width:      clamp(140px, 20vw, 200px);
+    height:     12px;
+    background: rgba(255, 255, 255, 0.08);
+    border:     1px solid rgba(255, 255, 255, 0.15);
+    margin-top: 4px;
+}
+
+#healthFill {
+    height:     100%;
+    background: var(--green);
+    transition: width 0.1s linear, background 0.4s;
+}
+
+/* Ammo counter */
+.hud-ammo {
+    position:   absolute;
+    bottom:     22px;
+    right:      20px;
+    text-align: right;
+}
+
+#ammoNum {
+    font-size:   clamp(2rem, 5vw, 3rem);
+    color:       var(--amber);
+    line-height: 1;
+}
+
+#ammoMax { font-size: 0.55em; color: var(--dim); }
+
+#reloadMsg {
+    font-size:      clamp(0.7rem, 1.3vw, 0.9rem);
+    color:          var(--red);
+    letter-spacing: 3px;
+    animation:      blink 0.5s step-end infinite;
+}
+
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Dash cooldown bar */
+.hud-dash {
+    position:   absolute;
+    bottom:     52px;
+    right:      20px;
+    text-align: right;
+}
+
+.dash-bar-wrap {
+    width:          80px;
+    height:         4px;
+    background:     rgba(255, 255, 255, 0.1);
+    border:         1px solid rgba(255, 255, 255, 0.12);
+    margin-top:     3px;
+    display:        inline-block;
+    vertical-align: middle;
+}
+
+#dashFill {
+    height:     100%;
+    background: #00bcd4;
+    transition: width 0.05s linear;
+}
+
+.dash-label {
+    font-size:      0.6rem;
+    color:          var(--dim);
+    letter-spacing: 3px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   WAVE / EVENT ANNOUNCEMENTS
+══════════════════════════════════════════════════════════════════════════ */
+#announce {
+    position:    fixed;
+    top:         50%;
+    left:        50%;
+    transform:   translate(-50%, -50%);
+    z-index:     15;
+    pointer-events: none;
+
+    font-family: 'Black Ops One', sans-serif;
+    font-size:   clamp(1.8rem, 5vw, 3.5rem);
+    color:       #fff;
+    text-shadow: 0 0 20px rgba(76, 175, 80, 1), 0 0 60px rgba(76, 175, 80, 0.4);
+    text-align:  center;
+    white-space: nowrap;
+
+    opacity:    0;
+    transition: opacity 0.35s;
+}
+
+#announce.show { opacity: 1; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MUTE TOGGLE (always on top)
+══════════════════════════════════════════════════════════════════════════ */
+#muteBtn {
+    position:   fixed;
+    top:        14px;
+    right:      14px;
+    z-index:    50;
+
+    background:  rgba(0, 0, 0, 0.55);
+    border:      1px solid rgba(200, 230, 201, 0.2);
+    color:       var(--dim);
+    font-family: 'Share Tech Mono', monospace;
+    font-size:   clamp(0.65rem, 1.2vw, 0.8rem);
+    letter-spacing: 2px;
+    padding:     5px 12px;
+    cursor:      pointer;
+    transition:  color 0.15s, border-color 0.15s;
+}
+
+#muteBtn:hover {
+    color:        var(--text);
+    border-color: var(--text);
+}
