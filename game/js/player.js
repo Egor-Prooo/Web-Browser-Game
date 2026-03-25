@@ -1,39 +1,29 @@
 /**
  * player.js — Player character and Bullet projectile.
- *
- * Import and use:
- *   import { Player } from './player.js';
- *   const player = new Player(x, y);
- *   const newBullets = player.update(input, delta);
- *   player.draw(ctx);
  */
 
 import { Audio } from './audio.js';
 
 // ─── Tuning constants ────────────────────────────────────────────────────────
-const PLAYER_SPEED  = 165;  // px/s normal movement
+const PLAYER_SPEED  = 165;
 const PLAYER_MAX_HP = 100;
 
-const MAX_AMMO      = 10;   // magazine capacity
-const RELOAD_MS     = 1500; // ms to reload a full magazine
-const FIRE_RATE     = 195;  // ms minimum between shots
+const MAX_AMMO      = 10;
+const RELOAD_MS     = 1500;
+const FIRE_RATE     = 195;
 
-const BULLET_SPEED  = 520;  // px/s
-const BULLET_DAMAGE = 25;   // HP removed per bullet
-const BULLET_LIFE   = 1400; // ms before a stray bullet expires
+const BULLET_SPEED  = 520;
+const BULLET_DAMAGE = 25;
+// NOTE: BULLET_LIFE removed — bullets now live until they leave the screen
+// (the off-screen cull in main.js handles cleanup).
 
-const DASH_SPEED    = 480;  // px/s while dashing
-const DASH_DUR      = 170;  // ms per dash
-const DASH_COOLDOWN = 1100; // ms between dashes
+const DASH_SPEED    = 480;
+const DASH_DUR      = 170;
+const DASH_COOLDOWN = 1100;
 
 // ─── Bullet ───────────────────────────────────────────────────────────────────
 
 export class Bullet {
-    /**
-     * @param {number} x     - Origin X
-     * @param {number} y     - Origin Y
-     * @param {number} angle - Direction in radians
-     */
     constructor(x, y, angle) {
         this.x  = x;
         this.y  = y;
@@ -42,27 +32,22 @@ export class Bullet {
 
         this.radius = 4;
         this.damage = BULLET_DAMAGE;
-        this.age    = 0;
         this.dead   = false;
-        this.trail  = [];   // stores last N positions for motion trail
+        this.trail  = [];
     }
 
-    /** @param {number} delta - Ms since last frame */
     update(delta) {
-        // Store position for trail before moving
+        // Store position for trail
         this.trail.push({ x: this.x, y: this.y });
         if (this.trail.length > 6) this.trail.shift();
 
-        this.x   += this.vx * delta / 1000;
-        this.y   += this.vy * delta / 1000;
-        this.age += delta;
-
-        if (this.age >= BULLET_LIFE) this.dead = true;
+        this.x += this.vx * delta / 1000;
+        this.y += this.vy * delta / 1000;
+        // FIX: no age-based expiry — main.js culls bullets that leave the canvas
     }
 
-    /** @param {CanvasRenderingContext2D} ctx */
     draw(ctx) {
-        // Motion trail (fades in opacity + radius toward the tip)
+        // Motion trail
         for (let i = 0; i < this.trail.length; i++) {
             const t = i / this.trail.length;
             ctx.beginPath();
@@ -85,52 +70,29 @@ export class Bullet {
 // ─── Player ───────────────────────────────────────────────────────────────────
 
 export class Player {
-    /**
-     * @param {number} x - Initial X position (canvas pixels)
-     * @param {number} y - Initial Y position (canvas pixels)
-     */
     constructor(x, y) {
         this.x = x;
         this.y = y;
         this.radius    = 16;
         this.health    = PLAYER_MAX_HP;
         this.maxHealth = PLAYER_MAX_HP;
-        this.angle     = 0;   // radians — direction the player is aiming
+        this.angle     = 0;
 
-        // Weapon state
         this.ammo        = MAX_AMMO;
         this.reloading   = false;
         this.reloadTimer = 0;
-        this.fireTimer   = 0;   // cooldown between shots
+        this.fireTimer   = 0;
 
-        // Dash state
-        this.dashTimer    = 0;  // ms remaining in current dash
-        this.dashCooldown = 0;  // ms until next dash is allowed
-        this.dashDx       = 0;  // normalised direction X
-        this.dashDy       = 0;  // normalised direction Y
+        this.dashTimer    = 0;
+        this.dashCooldown = 0;
+        this.dashDx       = 0;
+        this.dashDy       = 0;
 
-        // Visual/gameplay flags
-        this.hurtFlash  = 0;   // ms of red flash remaining
-        this.invincible = 0;   // ms of invincibility remaining (dash window)
+        this.hurtFlash  = 0;
+        this.invincible = 0;
         this.dead       = false;
     }
 
-    // ─── Called every frame ──────────────────────────────────────────────────
-
-    /**
-     * Processes movement, dash, aiming, reload and shooting.
-     *
-     * @param {Object}   input              - Shared input state from main.js
-     * @param {Set}      input.keys         - Currently held keys (lowercase)
-     * @param {number}   input.mouseX
-     * @param {number}   input.mouseY
-     * @param {boolean}  input.shooting     - Is LMB held down?
-     * @param {boolean}  input.dashPressed  - Was RMB pressed this frame? (consumed here)
-     * @param {boolean}  input.reloadPressed- Was R pressed this frame? (consumed here)
-     * @param {number}   delta              - Ms since last frame
-     *
-     * @returns {Bullet[]} Bullets fired this frame (may be empty).
-     */
     update(input, delta) {
         if (this.dead) return [];
 
@@ -142,7 +104,7 @@ export class Player {
             this.x += this.dashDx * DASH_SPEED * delta / 1000;
             this.y += this.dashDy * DASH_SPEED * delta / 1000;
         } else {
-            // ── Normal WASD / arrow-key movement ─────────────────────────────
+            // ── Normal WASD movement ──────────────────────────────────────────
             let dx = 0, dy = 0;
             if (input.keys.has('w') || input.keys.has('arrowup'))    dy -= 1;
             if (input.keys.has('s') || input.keys.has('arrowdown'))  dy += 1;
@@ -155,26 +117,24 @@ export class Player {
                 this.y += (dy / mag) * PLAYER_SPEED * delta / 1000;
             }
 
-            // ── Trigger dash (RMB + movement direction required) ──────────────
+            // ── Trigger dash ──────────────────────────────────────────────────
             if (input.dashPressed && this.dashCooldown <= 0 && mag > 0) {
                 this.dashTimer    = DASH_DUR;
                 this.dashDx       = dx / mag;
                 this.dashDy       = dy / mag;
                 this.dashCooldown = DASH_COOLDOWN;
-                this.invincible   = DASH_DUR + 80; // brief invincibility window
+                this.invincible   = DASH_DUR + 80;
                 Audio.dash();
             }
         }
 
-        // Always consume the dash input so it doesn't carry over next frame
         input.dashPressed = false;
 
-        // Tick down cooldown timers
         this.dashCooldown = Math.max(0, this.dashCooldown - delta);
         this.invincible   = Math.max(0, this.invincible   - delta);
         this.hurtFlash    = Math.max(0, this.hurtFlash    - delta);
 
-        // ── Aim toward the mouse cursor ───────────────────────────────────────
+        // ── Aim ───────────────────────────────────────────────────────────────
         this.angle = Math.atan2(input.mouseY - this.y, input.mouseX - this.x);
 
         // ── Reload ────────────────────────────────────────────────────────────
@@ -189,7 +149,7 @@ export class Player {
         }
         input.reloadPressed = false;
 
-        // ── Shoot (auto-fire while LMB held) ─────────────────────────────────
+        // ── Shoot ─────────────────────────────────────────────────────────────
         this.fireTimer = Math.max(0, this.fireTimer - delta);
 
         if (input.shooting && !this.reloading && this.ammo > 0 && this.fireTimer <= 0) {
@@ -197,15 +157,12 @@ export class Player {
             this.fireTimer = FIRE_RATE;
             bullets.push(new Bullet(this.x, this.y, this.angle));
             Audio.shot();
-
-            // Auto-reload when the last round is fired
             if (this.ammo === 0) this._startReload();
         }
 
         return bullets;
     }
 
-    /** Start a reload cycle. Safe to call multiple times — ignores if already reloading. */
     _startReload() {
         if (this.reloading) return;
         this.reloading   = true;
@@ -213,39 +170,29 @@ export class Player {
         Audio.reload();
     }
 
-    /** @param {CanvasRenderingContext2D} ctx */
     draw(ctx) {
         const dashing = this.dashTimer > 0;
         ctx.save();
 
-        // Flicker transparency when recently hurt
         if (this.hurtFlash > 0) {
             ctx.globalAlpha = 0.35 + 0.65 * Math.abs(Math.sin(this.hurtFlash / 40));
         }
 
-        // Drop shadow
+        // Shadow
         ctx.beginPath();
-        ctx.ellipse(
-            this.x, this.y + this.radius - 2,
-            this.radius * 0.9, this.radius * 0.32,
-            0, 0, Math.PI * 2
-        );
+        ctx.ellipse(this.x, this.y + this.radius - 2, this.radius * 0.9, this.radius * 0.32, 0, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(0,0,0,0.4)';
         ctx.fill();
 
-        // Dash after-image ghost
+        // Dash ghost
         if (dashing) {
             ctx.beginPath();
-            ctx.arc(
-                this.x - this.dashDx * 22,
-                this.y - this.dashDy * 22,
-                this.radius * 0.75, 0, Math.PI * 2
-            );
+            ctx.arc(this.x - this.dashDx * 22, this.y - this.dashDy * 22, this.radius * 0.75, 0, Math.PI * 2);
             ctx.fillStyle = 'rgba(100, 220, 255, 0.18)';
             ctx.fill();
         }
 
-        // Body circle
+        // Body
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fillStyle   = dashing ? '#80deea' : '#eceff1';
@@ -271,28 +218,19 @@ export class Player {
         ctx.restore();
     }
 
-    /**
-     * Called by enemies when they successfully land an attack.
-     * @param {number} amount - HP to subtract
-     */
     takeDamage(amount) {
         if (this.invincible > 0 || this.dead) return;
-        this.health    = Math.max(0, this.health - amount);
-        this.hurtFlash = 280;
-        this.invincible = 550; // prevent immediate repeat damage
+        this.health     = Math.max(0, this.health - amount);
+        this.hurtFlash  = 280;
+        this.invincible = 550;
         Audio.hurt();
 
         if (this.health <= 0) {
             this.dead = true;
-            // Custom event — main.js listens to trigger game-over flow
             document.dispatchEvent(new CustomEvent('playerDied'));
         }
     }
 
-    /**
-     * Fraction 0–1 representing dash cooldown progress (1 = ready to dash again).
-     * Used by the HUD dash bar.
-     */
     get dashFraction() {
         return this.dashCooldown <= 0 ? 1 : 1 - this.dashCooldown / DASH_COOLDOWN;
     }

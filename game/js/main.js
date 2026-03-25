@@ -1,15 +1,5 @@
 /**
  * main.js — Game orchestrator and entry point.
- *
- * Responsibilities:
- *   - Game loop (requestAnimationFrame)
- *   - Wave / spawn management
- *   - Input aggregation
- *   - HUD updates
- *   - Screen transitions (menu → playing → paused → gameover)
- *   - Particle effects
- *
- * Depends on: audio.js, fsm.js, enemy.js, player.js
  */
 
 import { Audio }  from './audio.js';
@@ -19,29 +9,23 @@ import { Player } from './player.js';
 // ─── Particle ─────────────────────────────────────────────────────────────────
 
 class Particle {
-    /**
-     * @param {number} x
-     * @param {number} y
-     * @param {string} [color='#c62828']
-     */
     constructor(x, y, color = '#c62828') {
         this.x = x;
         this.y = y;
-
         const angle = Math.random() * Math.PI * 2;
         const speed = 30 + Math.random() * 140;
         this.vx    = Math.cos(angle) * speed;
         this.vy    = Math.sin(angle) * speed;
         this.color = color;
         this.r     = 1.5 + Math.random() * 3;
-        this.life  = 350 + Math.random() * 350; // ms
+        this.life  = 350 + Math.random() * 350;
         this.age   = 0;
     }
 
     update(delta) {
         this.x  += this.vx * delta / 1000;
         this.y  += this.vy * delta / 1000;
-        this.vx *= 0.93; // friction
+        this.vx *= 0.93;
         this.vy *= 0.93;
         this.age += delta;
     }
@@ -62,44 +46,38 @@ class Particle {
 // ─── Game ─────────────────────────────────────────────────────────────────────
 
 class Game {
-    /** @param {HTMLCanvasElement} canvas */
     constructor(canvas) {
         this.canvas = canvas;
         this.ctx    = canvas.getContext('2d');
 
-        // 'menu' | 'playing' | 'paused' | 'gameover'
         this.state = 'menu';
 
-        // Score counters
         this.score = 0;
         this.kills = 0;
         this.wave  = 1;
 
-        // Entity pools
         this.enemies   = [];
         this.bullets   = [];
         this.particles = [];
         this.player    = null;
 
-        // Wave management
         this.waveActive  = false;
         this.enemiesLeft = 0;
         this.spawnTimer  = 0;
 
-        // ── Aggregated input state (written by event listeners) ───────────────
+        // ── Input state ───────────────────────────────────────────────────────
         this.input = {
-            keys:          new Set(),   // lowercase key strings currently held
+            keys:          new Set(),
             mouseX:        0,
             mouseY:        0,
-            shooting:      false,       // LMB held
-            dashPressed:   false,       // RMB pressed this frame
-            reloadPressed: false,       // R pressed this frame
+            shooting:      false,
+            dashPressed:   false,
+            reloadPressed: false,
         };
 
-        this._raf       = null;
-        this._lastTime  = 0;
+        this._raf      = null;
+        this._lastTime = 0;
 
-        // Pre-bake the floor tile pattern once
         this._tileCanvas  = null;
         this._tilePattern = null;
         this._buildTilePattern();
@@ -123,27 +101,16 @@ class Game {
         this._tilePattern = this.ctx.createPattern(oc, 'repeat');
     }
 
-    /** Resize canvas to fill the window (called on load and on every resize event). */
     resize() {
         this.canvas.width  = window.innerWidth;
         this.canvas.height = window.innerHeight;
-        // Pattern must be recreated after canvas resize
         if (this._tileCanvas)
             this._tilePattern = this.ctx.createPattern(this._tileCanvas, 'repeat');
     }
 
-    // ─── Event registration ───────────────────────────────────────────────────
-    // Events used (20 total — more than the required 10):
-    //  Keyboard:  ① keydown  ② keyup
-    //  Mouse:     ③ mousemove  ④ mousedown  ⑤ mouseup  ⑥ contextmenu  ⑦ wheel
-    //  Window:    ⑧ resize  ⑨ blur  ⑩ focus  ⑪ visibilitychange
-    //  Game loop: ⑫ requestAnimationFrame  ⑬ setTimeout
-    //  Custom:    ⑭ enemyDied  ⑮ playerDied  ⑯ gameStart
-    //             ⑰ gameOver  ⑱ waveStart  ⑲ waveComplete
-    //  UI clicks: ⑳ click (play / resume / quit / restart / mute buttons)
+    // ─── Events ───────────────────────────────────────────────────────────────
 
     _registerEvents() {
-
         // ① keydown
         window.addEventListener('keydown', (e) => {
             const key = e.key.toLowerCase();
@@ -152,73 +119,73 @@ class Game {
             if (key === 'escape') this._onEscape();
         });
 
-        // ② keyup
+        // ② keyup — always clear the key, even on focus loss
         window.addEventListener('keyup', (e) => {
             this.input.keys.delete(e.key.toLowerCase());
         });
 
-        // ③ mousemove — track cursor for aiming and crosshair rendering
+        // ③ mousemove
         window.addEventListener('mousemove', (e) => {
             this.input.mouseX = e.clientX;
             this.input.mouseY = e.clientY;
         });
 
-        // ④ mousedown — LMB = shoot, RMB = dash
+        // ④ mousedown — LMB shoot, RMB dash
         window.addEventListener('mousedown', (e) => {
             Audio.resume();
             if (e.button === 0) this.input.shooting   = true;
             if (e.button === 2) this.input.dashPressed = true;
         });
 
-        // ⑤ mouseup — stop shooting
+        // ⑤ mouseup
         window.addEventListener('mouseup', (e) => {
             if (e.button === 0) this.input.shooting = false;
         });
 
-        // ⑥ contextmenu — suppress browser menu so RMB works as dash
+        // ⑥ suppress context menu so RMB works as dash
         window.addEventListener('contextmenu', (e) => e.preventDefault());
 
-        // ⑦ wheel — reserved for a future weapon-cycle feature
-        window.addEventListener('wheel', (_e) => {
-            // Placeholder — swap weapon slot here in a future milestone
-        }, { passive: true });
+        // ⑦ wheel (reserved)
+        window.addEventListener('wheel', () => {}, { passive: true });
 
-        // ⑧ resize — keep the canvas full-window at all times
+        // ⑧ resize
         window.addEventListener('resize', () => this.resize());
 
-        // ⑨ blur — auto-pause when the window loses focus
+        // ⑨ blur — auto-pause; also clear all held keys so nothing "sticks"
         window.addEventListener('blur', () => {
+            this.input.keys.clear();          // FIX: prevents stuck keys
+            this.input.shooting = false;
             if (this.state === 'playing') this._pause();
         });
 
-        // ⑩ focus — the player decides when to resume (ESC or button)
-        window.addEventListener('focus', () => { /* intentionally empty */ });
+        // ⑩ focus
+        window.addEventListener('focus', () => { /* player resumes manually */ });
 
-        // ⑪ visibilitychange — pause on tab switch
+        // ⑪ visibilitychange
         document.addEventListener('visibilitychange', () => {
             if (document.hidden && this.state === 'playing') this._pause();
         });
 
-        // ⑭ Custom: enemyDied — award score and count kills
+        // ⑭ enemyDied
         document.addEventListener('enemyDied', () => {
             this.kills++;
             this.score += 100 * this.wave;
             this._updateHUD();
         });
 
-        // ⑮ Custom: playerDied — delay then trigger game-over screen
+        // ⑮ playerDied
         document.addEventListener('playerDied', () => {
-            setTimeout(() => this._endGame(), 900); // ⑬ setTimeout
+            setTimeout(() => this._endGame(), 900);
         });
 
-        // Mute toggle button (click ⑳)
+        // Mute button
         document.getElementById('muteBtn').addEventListener('click', () => {
             Audio.resume();
             const m = Audio.toggleMute();
             document.getElementById('muteBtn').textContent = m ? '🔇 SFX OFF' : '🔊 SFX ON';
         });
 
-        // Screen buttons (click ⑳)
+        // Screen buttons
         document.getElementById('playBtn')   .addEventListener('click', () => { Audio.resume(); this.startGame(); });
         document.getElementById('resumeBtn') .addEventListener('click', () => this._resume());
         document.getElementById('quitBtn')   .addEventListener('click', () => this._quitMenu());
@@ -229,7 +196,6 @@ class Game {
     // ─── State transitions ────────────────────────────────────────────────────
 
     startGame() {
-        // Reset all game data
         this.score = 0;
         this.kills = 0;
         this.wave  = 1;
@@ -247,17 +213,22 @@ class Game {
         this._updateHUD();
         this._startWave(1);
 
-        // ⑫ requestAnimationFrame — start the game loop
+        // FIX: make sure keyboard events reach `window` by blurring any focused
+        // UI button that may have stolen focus after the click.
+        if (document.activeElement && document.activeElement !== document.body) {
+            document.activeElement.blur();
+        }
+
         this._lastTime = performance.now();
         this._raf = requestAnimationFrame((t) => this._loop(t));
 
-        // ⑯ Custom event: gameStart
         document.dispatchEvent(new CustomEvent('gameStart', { detail: { wave: 1 } }));
     }
 
     _pause() {
         if (this.state !== 'playing') return;
         this.state = 'paused';
+        this.input.keys.clear();
         cancelAnimationFrame(this._raf);
         this._showScreen('pauseScreen');
     }
@@ -266,6 +237,8 @@ class Game {
         if (this.state !== 'paused') return;
         this.state = 'playing';
         this._showScreen(null);
+        if (document.activeElement && document.activeElement !== document.body)
+            document.activeElement.blur();
         this._lastTime = performance.now();
         this._raf = requestAnimationFrame((t) => this._loop(t));
     }
@@ -289,7 +262,6 @@ class Game {
         Audio.gameOver();
         document.getElementById('hud').classList.remove('on');
 
-        // Persist high score in localStorage
         const prev  = parseInt(localStorage.getItem('zombieBestScore') || '0');
         const isNew = this.score > prev;
         if (isNew) localStorage.setItem('zombieBestScore', String(this.score));
@@ -300,8 +272,6 @@ class Game {
         document.getElementById('newBest')   .style.display = isNew ? 'block' : 'none';
 
         this._showScreen('gameOverScreen');
-
-        // ⑰ Custom event: gameOver
         document.dispatchEvent(new CustomEvent('gameOver', {
             detail: { score: this.score, wave: this.wave, kills: this.kills },
         }));
@@ -326,13 +296,11 @@ class Game {
     _startWave(num) {
         this.wave        = num;
         this.waveActive  = true;
-        this.enemiesLeft = 5 + num * 2;  // wave 1 → 7 enemies, wave 2 → 9, etc.
-        this.spawnTimer  = 0;            // spawn first enemy immediately
+        this.enemiesLeft = 5 + num * 2;
+        this.spawnTimer  = 0;
         this._updateHUD();
         this._announce(`WAVE  ${num}`);
         Audio.waveUp();
-
-        // ⑱ Custom event: waveStart
         document.dispatchEvent(new CustomEvent('waveStart', { detail: { wave: num } }));
     }
 
@@ -340,7 +308,6 @@ class Game {
         const el = document.getElementById('announce');
         el.textContent = text;
         el.classList.add('show');
-        // ⑬ setTimeout — hide announcement after 2.2 s
         setTimeout(() => el.classList.remove('show'), 2200);
     }
 
@@ -353,51 +320,44 @@ class Game {
         this._announce('WAVE CLEAR!');
         Audio.waveClear();
 
-        // Restore 25 HP between waves
         if (this.player) {
             this.player.health = Math.min(this.player.maxHealth, this.player.health + 25);
         }
 
-        // ⑲ Custom event: waveComplete
         document.dispatchEvent(new CustomEvent('waveComplete', { detail: { wave: this.wave } }));
 
-        // ⑬ setTimeout — brief break before next wave
         setTimeout(() => {
             if (this.state === 'playing') this._startWave(this.wave + 1);
         }, 3200);
     }
 
-    /** Drip-feed enemies onto the canvas edge over time. */
     _trySpawnEnemy(delta) {
         if (this.enemiesLeft <= 0) return;
         this.spawnTimer -= delta;
         if (this.spawnTimer > 0) return;
 
-        // Random canvas edge
         const W = this.canvas.width, H = this.canvas.height;
         const side = Math.floor(Math.random() * 4);
         let ex, ey;
         switch (side) {
-            case 0: ex = Math.random() * W; ey = -24;   break; // top
-            case 1: ex = W + 24;            ey = Math.random() * H; break; // right
-            case 2: ex = Math.random() * W; ey = H + 24; break; // bottom
-            default: ex = -24;             ey = Math.random() * H; break; // left
+            case 0: ex = Math.random() * W; ey = -24;    break;
+            case 1: ex = W + 24;            ey = Math.random() * H; break;
+            case 2: ex = Math.random() * W; ey = H + 24; break;
+            default: ex = -24;             ey = Math.random() * H; break;
         }
 
-        // Speed increases each wave, capped at 2.2×
         const speedMult = Math.min(1 + (this.wave - 1) * 0.08, 2.2);
         this.enemies.push(new Enemy(ex, ey, speedMult));
         this.enemiesLeft--;
 
-        // Spawn interval shrinks with wave (min 450 ms)
         this.spawnTimer = Math.max(450, 1600 - this.wave * 120);
     }
 
-    // ─── Main loop (requestAnimationFrame ⑫) ─────────────────────────────────
+    // ─── Main loop ────────────────────────────────────────────────────────────
 
     _loop(timestamp) {
         if (this.state !== 'playing') return;
-        const delta = Math.min(timestamp - this._lastTime, 100); // cap spike at 100 ms
+        const delta = Math.min(timestamp - this._lastTime, 100);
         this._lastTime = timestamp;
         this._update(delta);
         this._draw();
@@ -409,25 +369,22 @@ class Game {
     _update(delta) {
         if (!this.player) return;
 
-        // Spawn queued enemies
         this._trySpawnEnemy(delta);
 
-        // Update player — collect any bullets fired this frame
         const newBullets = this.player.update(this.input, delta);
         this.bullets.push(...newBullets);
 
-        // Clamp player inside canvas bounds
+        // Clamp player inside canvas
         const W = this.canvas.width, H = this.canvas.height;
         const r = this.player.radius;
         this.player.x = Math.max(r, Math.min(W - r, this.player.x));
         this.player.y = Math.max(r, Math.min(H - r, this.player.y));
 
-        // Update enemies — null player ref if dead (so enemies stop targeting)
         const livePlayer = this.player.dead ? null : this.player;
         for (const e of this.enemies) e.update(livePlayer, delta);
         this.enemies = this.enemies.filter(e => !e.dead);
 
-        // Bullet vs enemy collision
+        // Bullet vs enemy
         for (const b of this.bullets) {
             b.update(delta);
             if (b.dead) continue;
@@ -437,26 +394,21 @@ class Game {
                 if (Math.hypot(b.x - e.x, b.y - e.y) < e.radius + b.radius) {
                     e.takeDamage(b.damage);
                     b.dead = true;
-                    // Spawn blood-splatter particles at the impact point
                     for (let i = 0; i < 7; i++)
                         this.particles.push(new Particle(b.x, b.y, '#b71c1c'));
                     break;
                 }
             }
 
-            // Expire bullets that have left the visible canvas
-            if (b.x < -60 || b.x > W + 60 || b.y < -60 || b.y > H + 60) b.dead = true;
+            // FIX: cull bullets that leave the visible area (sole expiry mechanism)
+            if (b.x < -80 || b.x > W + 80 || b.y < -80 || b.y > H + 80) b.dead = true;
         }
         this.bullets = this.bullets.filter(b => !b.dead);
 
-        // Particles
         for (const p of this.particles) p.update(delta);
         this.particles = this.particles.filter(p => !p.dead);
 
-        // Check if the wave is over
         this._checkWaveComplete();
-
-        // Sync HUD every frame
         this._updateHUD();
     }
 
@@ -466,7 +418,6 @@ class Game {
         const ctx = this.ctx;
         const W = this.canvas.width, H = this.canvas.height;
 
-        // Floor
         ctx.fillStyle = this._tilePattern || '#0a120a';
         ctx.fillRect(0, 0, W, H);
 
@@ -477,7 +428,7 @@ class Game {
         ctx.fillStyle = vig;
         ctx.fillRect(0, 0, W, H);
 
-        // Red vignette flash when the player is hit
+        // Hurt flash
         if (this.player?.hurtFlash > 0) {
             const a   = (this.player.hurtFlash / 280) * 0.38;
             const hvg = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.hypot(W, H) / 2);
@@ -487,7 +438,7 @@ class Game {
             ctx.fillRect(0, 0, W, H);
         }
 
-        // Danger glow around the player when an enemy is very close
+        // Danger glow
         if (this.player && !this.player.dead) {
             const closest = this.enemies.reduce((min, e) => {
                 if (e.fsm.isIn('DEAD', 'SPAWN')) return min;
@@ -509,13 +460,11 @@ class Game {
             }
         }
 
-        // Entities — back to front: bullets, particles, enemies, player
         for (const b of this.bullets)   b.draw(ctx);
         for (const p of this.particles) p.draw(ctx);
         for (const e of this.enemies)   e.draw(ctx);
         if (this.player) this.player.draw(ctx);
 
-        // Crosshair overlay
         this._drawCrosshair(ctx);
     }
 
@@ -545,22 +494,18 @@ class Game {
     _updateHUD() {
         if (!this.player) return;
 
-        // Health bar
         const hp    = this.player.health / this.player.maxHealth;
         const hFill = document.getElementById('healthFill');
         hFill.style.width      = (hp * 100) + '%';
         hFill.style.background = hp > 0.5 ? '#4caf50' : hp > 0.25 ? '#ff9800' : '#f44336';
 
-        // Dash cooldown bar
         document.getElementById('dashFill').style.width =
             (this.player.dashFraction * 100) + '%';
 
-        // Counters
         document.getElementById('scoreVal').textContent = this.score;
         document.getElementById('waveVal') .textContent = this.wave;
         document.getElementById('killsVal').textContent = this.kills;
 
-        // Ammo / reload indicator
         const reloading = this.player.reloading;
         document.getElementById('reloadMsg').style.display = reloading ? 'block' : 'none';
         document.getElementById('ammoNum')  .style.display = reloading ? 'none'  : 'block';
@@ -569,9 +514,7 @@ class Game {
     }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// BOOTSTRAP  — runs after the page finishes loading (window load event ⑳+1)
-// ════════════════════════════════════════════════════════════════════════════
+// ─── Bootstrap ────────────────────────────────────────────────────────────────
 
 window.addEventListener('load', () => {
     Audio.resume();
@@ -581,7 +524,6 @@ window.addEventListener('load', () => {
     game.resize();
     game._showBestScore();
 
-    // Animate the background while on the menu screen (uses its own rAF loop)
     let menuRaf;
     function menuLoop() {
         if (game.state !== 'menu') return;
@@ -589,7 +531,6 @@ window.addEventListener('load', () => {
         ctx.fillStyle = game._tilePattern || '#0a120a';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Slow green radial pulse
         const now = Date.now() / 1000;
         const cx  = canvas.width / 2, cy = canvas.height / 2;
         const pulse = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(cx, cy));
@@ -604,10 +545,8 @@ window.addEventListener('load', () => {
     }
     menuRaf = requestAnimationFrame(menuLoop);
 
-    // Kill menu animation when the game begins
     document.addEventListener('gameStart', () => cancelAnimationFrame(menuRaf));
 
-    // Restart it if the player returns to the menu
     document.getElementById('quitBtn').addEventListener('click', () =>
         requestAnimationFrame(menuLoop));
     document.getElementById('menuBtn').addEventListener('click', () =>
