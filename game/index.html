@@ -4,26 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Zombie Survival Arena</title>
-
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-
-  <!-- Styles -->
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-  <!-- Game canvas (all rendering happens here) -->
   <canvas id="gameCanvas"></canvas>
-
-  <!-- Sound toggle (always visible) -->
   <button id="muteBtn">🔊 SFX ON</button>
 
-  <!-- ─── HUD (visible only during gameplay) ─────────────────────────── -->
+  <!-- ─── HUD ───────────────────────────────────────────────────────────── -->
   <div id="hud">
-
-    <!-- Top bar: score / wave / kills -->
     <div class="hud-top">
       <div class="hud-cell">
         <div class="hud-label">SCORE</div>
@@ -39,7 +30,17 @@
       </div>
     </div>
 
-    <!-- Health bar (bottom-left) -->
+    <!-- Level badge top-centre -->
+    <div id="levelBadge"></div>
+
+    <!-- Objective health bar (shown only in defend mode) -->
+    <div id="objectiveBar" style="display:none">
+      <div class="hud-label" style="letter-spacing:4px;font-size:0.6rem">CACHE HP</div>
+      <div class="bar-wrap" style="width:clamp(140px,22vw,220px)">
+        <div id="objFill" style="height:100%;background:#ffb300;transition:width 0.1s"></div>
+      </div>
+    </div>
+
     <div class="hud-health">
       <div class="hud-label">HEALTH</div>
       <div class="bar-wrap">
@@ -47,7 +48,6 @@
       </div>
     </div>
 
-    <!-- Dash cooldown bar (bottom-right, above ammo) -->
     <div class="hud-dash">
       <span class="dash-label">DASH</span>
       <div class="dash-bar-wrap">
@@ -55,19 +55,16 @@
       </div>
     </div>
 
-    <!-- Ammo counter (bottom-right) -->
     <div class="hud-ammo">
       <div id="reloadMsg" style="display:none">RELOADING</div>
       <div id="ammoNum">10<span id="ammoMax"> /10</span></div>
       <div class="hud-label">[R] RELOAD</div>
     </div>
+  </div>
 
-  </div><!-- /#hud -->
-
-  <!-- Wave / event announcement banner (centred, auto-fades) -->
   <div id="announce"></div>
 
-  <!-- ─── SCREENS ────────────────────────────────────────────────────── -->
+  <!-- ─── SCREENS ──────────────────────────────────────────────────────── -->
 
   <!-- MAIN MENU -->
   <div id="menuScreen" class="screen">
@@ -81,6 +78,15 @@
     </div>
   </div>
 
+  <!-- LEVEL SELECT -->
+  <div id="levelSelectScreen" class="screen hidden" style="overflow-y:auto;padding:20px 0"></div>
+
+  <!-- LEVEL INTRO -->
+  <div id="levelIntroScreen" class="screen hidden li-screen"></div>
+
+  <!-- LEVEL COMPLETE -->
+  <div id="levelCompleteScreen" class="screen hidden"></div>
+
   <!-- PAUSE -->
   <div id="pauseScreen" class="screen hidden">
     <div class="screen-title" style="font-size:clamp(2rem,6vw,4.5rem)">PAUSED</div>
@@ -92,28 +98,20 @@
   <!-- GAME OVER -->
   <div id="gameOverScreen" class="screen hidden">
     <div class="screen-title"
-         style="font-size:clamp(2rem,6vw,4.5rem);
-                color:#e57373;
-                text-shadow:0 0 20px rgba(229,57,53,0.8)">DEAD.</div>
+         style="font-size:clamp(2rem,6vw,4.5rem);color:#e57373;text-shadow:0 0 20px rgba(229,57,53,0.8)">DEAD.</div>
     <div class="stat-block">
+      LEVEL &nbsp; <span id="finalLevel" style="color:#90caf9"></span>
+      <br>
       FINAL SCORE
       <span class="big" id="finalScore">0</span>
       WAVE <span id="finalWave">1</span> &nbsp;·&nbsp; KILLS <span id="finalKills">0</span>
       <br>
       <span class="new-best" id="newBest" style="display:none">★ &nbsp; NEW BEST SCORE!</span>
     </div>
-    <button class="btn" id="restartBtn">↺ &nbsp; PLAY AGAIN</button>
+    <button class="btn" id="restartBtn">↺ &nbsp; RETRY LEVEL</button>
     <button class="btn"  id="menuBtn">⌂ &nbsp; MAIN MENU</button>
   </div>
 
-  <!-- ─── Scripts (ES modules — order matters) ───────────────────────── -->
-  <!--
-    main.js is the entry point; it imports audio.js, enemy.js, player.js.
-    enemy.js imports fsm.js and audio.js.
-    player.js imports audio.js.
-    All files must be in the same /js/ folder.
-  -->
   <script type="module" src="js/main.js"></script>
-
 </body>
 </html>

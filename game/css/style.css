@@ -8,17 +8,14 @@
     --green-d: #2e7d32;
     --red:     #e53935;
     --amber:   #ffb300;
+    --cyan:    #00e5ff;
     --text:    #c8e6c9;
     --dim:     rgba(200, 230, 201, 0.45);
     --bg:      #060a06;
 }
 
 /* ── Reset ──────────────────────────────────────────────────────────────── */
-*, *::before, *::after {
-    margin:     0;
-    padding:    0;
-    box-sizing: border-box;
-}
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
     background:  var(--bg);
@@ -28,16 +25,15 @@ body {
     user-select: none;
 }
 
-/* ── Canvas ─────────────────────────────────────────────────────────────── */
 #gameCanvas {
     display:  block;
     position: fixed;
     inset:    0;
-    cursor:   none; /* we draw our own crosshair */
+    cursor:   none;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   SCREENS  (menu / pause / game-over)
+   SCREENS
 ══════════════════════════════════════════════════════════════════════════ */
 .screen {
     position:        fixed;
@@ -53,12 +49,11 @@ body {
 
 .screen.hidden { display: none; }
 
-/* Title text */
 .screen-title {
-    font-family:   'Black Ops One', sans-serif;
-    font-size:     clamp(2.8rem, 9vw, 6.5rem);
-    line-height:   1;
-    color:         var(--text);
+    font-family:    'Black Ops One', sans-serif;
+    font-size:      clamp(2.8rem, 9vw, 6.5rem);
+    line-height:    1;
+    color:          var(--text);
     text-shadow:
         0 0 20px  rgba(76, 175, 80, 0.9),
         0 0 60px  rgba(76, 175, 80, 0.4),
@@ -68,7 +63,6 @@ body {
     margin-bottom:  0.25em;
 }
 
-/* Subtitle / tagline */
 .screen-sub {
     font-size:     clamp(0.75rem, 1.6vw, 1.1rem);
     letter-spacing: 6px;
@@ -94,29 +88,25 @@ body {
 }
 
 .btn:hover {
-    background:  var(--green);
-    color:       #000;
-    box-shadow:  0 0 24px rgba(76, 175, 80, 0.55);
+    background: var(--green);
+    color:      #000;
+    box-shadow: 0 0 24px rgba(76, 175, 80, 0.55);
 }
 
-.btn.red {
-    border-color: var(--red);
-    color:        var(--red);
-}
-
+.btn.red { border-color: var(--red); color: var(--red); }
 .btn.red:hover {
-    background:  var(--red);
-    color:       #fff;
-    box-shadow:  0 0 24px rgba(229, 57, 53, 0.5);
+    background: var(--red);
+    color:      #fff;
+    box-shadow: 0 0 24px rgba(229, 57, 53, 0.5);
 }
 
-/* ── Score / stat block (game-over screen) ──────────────────────────────── */
+/* ── Stat block ─────────────────────────────────────────────────────────── */
 .stat-block {
-    font-size:    clamp(0.8rem, 1.5vw, 1rem);
-    color:        var(--dim);
-    text-align:   center;
-    margin:       0.8rem 0 1.4rem;
-    line-height:  2;
+    font-size:   clamp(0.8rem, 1.5vw, 1rem);
+    color:       var(--dim);
+    text-align:  center;
+    margin:      0.8rem 0 1.4rem;
+    line-height: 2;
 }
 
 .stat-block .big {
@@ -126,32 +116,216 @@ body {
     line-height: 1.1;
 }
 
-.stat-block .new-best {
-    color:          #ffd54f;
-    letter-spacing: 3px;
-}
+.stat-block .new-best { color: #ffd54f; letter-spacing: 3px; }
 
-/* Controls hint (shown on main menu) */
 .hint {
-    margin-top:   1.8rem;
-    font-size:    clamp(0.65rem, 1.2vw, 0.82rem);
-    color:        var(--dim);
-    text-align:   center;
-    line-height:  2.2;
+    margin-top:     1.8rem;
+    font-size:      clamp(0.65rem, 1.2vw, 0.82rem);
+    color:          var(--dim);
+    text-align:     center;
+    line-height:    2.2;
     letter-spacing: 2px;
 }
 
 .hint span { color: var(--text); }
 
-/* Best-score chip on main menu */
 #bestChip {
     font-size:      clamp(0.7rem, 1.4vw, 0.85rem);
     color:          var(--dim);
     letter-spacing: 2px;
     margin-bottom:  1.2rem;
 }
-
 #bestChip span { color: var(--amber); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LEVEL SELECT
+══════════════════════════════════════════════════════════════════════════ */
+.ls-grid {
+    display:               grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap:                   12px;
+    width:                 min(900px, 90vw);
+    max-height:            55vh;
+    overflow-y:            auto;
+    padding:               4px;
+    scrollbar-width:       thin;
+    scrollbar-color:       var(--green-d) transparent;
+}
+
+.ls-card {
+    position:      relative;
+    border:        1px solid rgba(76, 175, 80, 0.25);
+    padding:       18px 16px 14px;
+    cursor:        pointer;
+    transition:    border-color 0.15s, background 0.15s, transform 0.1s;
+    background:    rgba(10, 20, 10, 0.6);
+}
+
+.ls-card:not(.ls-locked):hover {
+    border-color: var(--green);
+    background:   rgba(76, 175, 80, 0.1);
+    transform:    translateY(-2px);
+    box-shadow:   0 0 18px rgba(76, 175, 80, 0.2);
+}
+
+.ls-card.ls-locked {
+    opacity: 0.4;
+    cursor:  not-allowed;
+    filter:  grayscale(0.6);
+}
+
+.ls-num {
+    font-family:    'Black Ops One', sans-serif;
+    font-size:      2.2rem;
+    color:          rgba(76, 175, 80, 0.25);
+    line-height:    1;
+    margin-bottom:  4px;
+}
+
+.ls-name {
+    font-size:      0.95rem;
+    color:          var(--text);
+    letter-spacing: 2px;
+    margin-bottom:  2px;
+}
+
+.ls-sub {
+    font-size:   0.68rem;
+    color:       var(--dim);
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+}
+
+.ls-obj {
+    display:        inline-block;
+    font-size:      0.6rem;
+    letter-spacing: 3px;
+    padding:        2px 8px;
+    border:         1px solid;
+    margin-bottom:  6px;
+}
+
+.ls-obj-eliminate { border-color: #ef9a9a; color: #ef9a9a; }
+.ls-obj-holdout   { border-color: var(--cyan); color: var(--cyan); }
+.ls-obj-defend    { border-color: var(--amber); color: var(--amber); }
+
+.ls-cleared {
+    position:    absolute;
+    top:         10px;
+    right:       10px;
+    font-size:   0.62rem;
+    color:       var(--amber);
+    letter-spacing: 2px;
+}
+
+.ls-lock-label {
+    position:    absolute;
+    bottom:      10px;
+    right:       10px;
+    font-size:   0.65rem;
+    color:       rgba(200, 230, 201, 0.3);
+    letter-spacing: 1px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LEVEL INTRO
+══════════════════════════════════════════════════════════════════════════ */
+.li-screen {
+    gap: 0;
+}
+
+.li-header {
+    text-align:    center;
+    margin-bottom: 1.2rem;
+}
+
+.li-level-num {
+    font-size:      clamp(0.65rem, 1.2vw, 0.85rem);
+    letter-spacing: 6px;
+    color:          var(--dim);
+    margin-bottom:  0.4rem;
+}
+
+.li-title {
+    font-family:    'Black Ops One', sans-serif;
+    font-size:      clamp(2rem, 6vw, 4.5rem);
+    line-height:    1;
+    color:          var(--text);
+    text-shadow:
+        0 0 18px rgba(76,175,80,0.8),
+        0 0 50px rgba(76,175,80,0.3);
+    letter-spacing: 2px;
+}
+
+.li-sub {
+    font-size:      clamp(0.7rem, 1.4vw, 1rem);
+    letter-spacing: 5px;
+    color:          var(--dim);
+    margin-top:     0.3rem;
+}
+
+.li-objective {
+    font-size:      clamp(0.7rem, 1.5vw, 0.95rem);
+    letter-spacing: 5px;
+    color:          var(--amber);
+    border:         1px solid rgba(255, 179, 0, 0.3);
+    padding:        6px 20px;
+    margin-bottom:  1.2rem;
+}
+
+.li-desc {
+    font-size:      clamp(0.7rem, 1.4vw, 0.9rem);
+    color:          var(--dim);
+    text-align:     center;
+    margin-bottom:  1.2rem;
+    letter-spacing: 2px;
+    max-width:      480px;
+}
+
+.li-briefing {
+    border:        1px solid rgba(76, 175, 80, 0.15);
+    padding:       16px 24px;
+    margin-bottom: 1.6rem;
+    background:    rgba(0, 0, 0, 0.3);
+    max-width:     480px;
+    width:         90vw;
+}
+
+.li-brief-line {
+    font-size:      clamp(0.65rem, 1.2vw, 0.82rem);
+    letter-spacing: 2px;
+    color:          var(--dim);
+    line-height:    2.2;
+}
+
+.li-brief-line:first-child { color: var(--text); }
+
+.li-start-btn {
+    font-size:      clamp(1rem, 2vw, 1.4rem);
+    letter-spacing: 6px;
+    min-width:      240px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LEVEL COMPLETE
+══════════════════════════════════════════════════════════════════════════ */
+.lc-title {
+    font-family:    'Black Ops One', sans-serif;
+    font-size:      clamp(2.5rem, 7vw, 5rem);
+    color:          #a5d6a7;
+    text-shadow:
+        0 0 20px rgba(165, 214, 167, 0.8),
+        0 0 60px rgba(76, 175, 80, 0.4);
+    letter-spacing: 3px;
+    margin-bottom:  0.1em;
+}
+
+.lc-level {
+    font-size:      clamp(0.7rem, 1.5vw, 1rem);
+    letter-spacing: 6px;
+    color:          var(--dim);
+    margin-bottom:  1.2rem;
+}
 
 /* ══════════════════════════════════════════════════════════════════════════
    HUD
@@ -161,12 +335,11 @@ body {
     inset:          0;
     pointer-events: none;
     z-index:        10;
-    display:        none; /* shown only during gameplay */
+    display:        none;
 }
 
 #hud.on { display: block; }
 
-/* Top bar — score / wave / kills */
 .hud-top {
     position:        absolute;
     top:             0;
@@ -186,14 +359,35 @@ body {
     color:          var(--dim);
 }
 
-.hud-value {
-    font-size:   clamp(1.4rem, 3vw, 2rem);
-    line-height: 1.1;
+.hud-value  { font-size: clamp(1.4rem, 3vw, 2rem); line-height: 1.1; }
+#scoreVal   { color: var(--amber); }
+#waveVal    { color: var(--text);  }
+#killsVal   { color: var(--red);   }
+
+/* Level badge — top centre below score row */
+#levelBadge {
+    position:       absolute;
+    top:            50px;
+    left:           50%;
+    transform:      translateX(-50%);
+    font-size:      clamp(0.55rem, 1vw, 0.7rem);
+    letter-spacing: 3px;
+    color:          rgba(200, 230, 201, 0.28);
+    white-space:    nowrap;
+    text-align:     center;
 }
 
-#scoreVal { color: var(--amber); }
-#waveVal  { color: var(--text);  }
-#killsVal { color: var(--red);   }
+/* Objective bar — positioned below wave display */
+#objectiveBar {
+    position:        absolute;
+    top:             50px;
+    left:            50%;
+    transform:       translateX(-50%);
+    display:         flex;
+    flex-direction:  column;
+    align-items:     center;
+    gap:             3px;
+}
 
 /* Health bar */
 .hud-health {
@@ -230,7 +424,7 @@ body {
     line-height: 1;
 }
 
-#ammoMax { font-size: 0.55em; color: var(--dim); }
+#ammoMax  { font-size: 0.55em; color: var(--dim); }
 
 #reloadMsg {
     font-size:      clamp(0.7rem, 1.3vw, 0.9rem);
@@ -241,7 +435,7 @@ body {
 
 @keyframes blink { 50% { opacity: 0; } }
 
-/* Dash cooldown bar */
+/* Dash bar */
 .hud-dash {
     position:   absolute;
     bottom:     52px;
@@ -265,57 +459,54 @@ body {
     transition: width 0.05s linear;
 }
 
-.dash-label {
-    font-size:      0.6rem;
-    color:          var(--dim);
-    letter-spacing: 3px;
-}
+.dash-label { font-size: 0.6rem; color: var(--dim); letter-spacing: 3px; }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   WAVE / EVENT ANNOUNCEMENTS
+   ANNOUNCE BANNER
 ══════════════════════════════════════════════════════════════════════════ */
 #announce {
-    position:    fixed;
-    top:         50%;
-    left:        50%;
-    transform:   translate(-50%, -50%);
-    z-index:     15;
+    position:       fixed;
+    top:            50%;
+    left:           50%;
+    transform:      translate(-50%, -50%);
+    z-index:        15;
     pointer-events: none;
-
-    font-family: 'Black Ops One', sans-serif;
-    font-size:   clamp(1.8rem, 5vw, 3.5rem);
-    color:       #fff;
-    text-shadow: 0 0 20px rgba(76, 175, 80, 1), 0 0 60px rgba(76, 175, 80, 0.4);
-    text-align:  center;
-    white-space: nowrap;
-
-    opacity:    0;
-    transition: opacity 0.35s;
+    font-family:    'Black Ops One', sans-serif;
+    font-size:      clamp(1.8rem, 5vw, 3.5rem);
+    color:          #fff;
+    text-shadow:    0 0 20px rgba(76,175,80,1), 0 0 60px rgba(76,175,80,0.4);
+    text-align:     center;
+    white-space:    nowrap;
+    opacity:        0;
+    transition:     opacity 0.35s;
 }
 
 #announce.show { opacity: 1; }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   MUTE TOGGLE (always on top)
+   MUTE BUTTON
 ══════════════════════════════════════════════════════════════════════════ */
 #muteBtn {
-    position:   fixed;
-    top:        14px;
-    right:      14px;
-    z-index:    50;
-
-    background:  rgba(0, 0, 0, 0.55);
-    border:      1px solid rgba(200, 230, 201, 0.2);
-    color:       var(--dim);
-    font-family: 'Share Tech Mono', monospace;
-    font-size:   clamp(0.65rem, 1.2vw, 0.8rem);
+    position:       fixed;
+    top:            14px;
+    right:          14px;
+    z-index:        50;
+    background:     rgba(0, 0, 0, 0.55);
+    border:         1px solid rgba(200, 230, 201, 0.2);
+    color:          var(--dim);
+    font-family:    'Share Tech Mono', monospace;
+    font-size:      clamp(0.65rem, 1.2vw, 0.8rem);
     letter-spacing: 2px;
-    padding:     5px 12px;
-    cursor:      pointer;
-    transition:  color 0.15s, border-color 0.15s;
+    padding:        5px 12px;
+    cursor:         pointer;
+    transition:     color 0.15s, border-color 0.15s;
 }
 
-#muteBtn:hover {
-    color:        var(--text);
-    border-color: var(--text);
-}
+#muteBtn:hover { color: var(--text); border-color: var(--text); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SCROLLBAR (level select grid)
+══════════════════════════════════════════════════════════════════════════ */
+.ls-grid::-webkit-scrollbar       { width: 4px; }
+.ls-grid::-webkit-scrollbar-track { background: transparent; }
+.ls-grid::-webkit-scrollbar-thumb { background: var(--green-d); border-radius: 2px; }

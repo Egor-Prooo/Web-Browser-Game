@@ -1,19 +1,13 @@
 /**
  * enemy.js — Enemy types for Zombie Survival Arena.
  *
- * Four enemy types, all using the shared FSM:
- *
- *  ZOMBIE  — The classic. Medium speed, medium HP. Vanilla chaser.
- *  RUNNER  — Fast, low HP, tiny. Zigzags while chasing to dodge bullets.
- *  BRUTE   — Huge, very slow, very tanky. Knocks the player back on hit.
- *  SPITTER — Keeps distance, fires acid projectiles at the player.
- *
- * Public API (same for all types):
- *   enemy.update(player, delta)
- *   enemy.draw(ctx)
- *   enemy.takeDamage(amount)
- *   enemy.dead          — true once the death animation finishes
- *   enemy.projectiles   — array of AcidBlob objects (Spitter only, else [])
+ * CHANGES:
+ *  - Zombie: damage 10→20, INSTANT attack on contact (no timer delay),
+ *            attack rate tightened to 800ms
+ *  - Runner: faster (195→240 chase), more aggressive zigzag, more HP (40→55),
+ *            damage buffed 7→14, smaller attack timer gap
+ *  - Brute:  damage 25→60, knockback further, slightly faster
+ *  - Spitter: unchanged (ranged, already punishing)
  */
 
 import { FSM }   from './fsm.js';
@@ -21,7 +15,14 @@ import { Audio } from './audio.js';
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
-function pickWanderTarget(margin = 80) {
+export function pickWanderTarget(margin = 80, arenaConstraint = null) {
+    if (arenaConstraint) {
+        const { x, y, w, h } = arenaConstraint;
+        return {
+            x: x + margin + Math.random() * (w - margin * 2),
+            y: y + margin + Math.random() * (h - margin * 2),
+        };
+    }
     const canvas = document.getElementById('gameCanvas');
     const W = canvas ? canvas.width  : 800;
     const H = canvas ? canvas.height : 600;
@@ -129,10 +130,21 @@ function buildBaseStates(enemy, chaseStates) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  ZOMBIE
+//  ZOMBIE  — buffed: 20 dmg, INSTANT first hit, 800ms repeat rate
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ZC = { CHASE_RANGE:420, FORGET_RANGE:600, ATTACK_RANGE:32, WANDER_SPEED:45, CHASE_SPEED:90, ATTACK_DAMAGE:10, ATTACK_RATE:1000, MAX_HEALTH:100, RADIUS:14, SCORE:100 };
+const ZC = {
+    CHASE_RANGE:   420,
+    FORGET_RANGE:  600,
+    ATTACK_RANGE:  32,
+    WANDER_SPEED:  48,
+    CHASE_SPEED:   95,
+    ATTACK_DAMAGE: 20,   // was 10
+    ATTACK_RATE:   800,  // was 1000
+    MAX_HEALTH:    100,
+    RADIUS:        14,
+    SCORE:         100,
+};
 
 function buildZombieStates(e) {
     return buildBaseStates(e, {
@@ -157,11 +169,15 @@ function buildZombieStates(e) {
             ],
         },
         ATTACK: {
-            onEnter() { e.attackTimer=0; },
+            // INSTANT first strike: attackTimer starts at ATTACK_RATE so first tick fires immediately
+            onEnter() { e.attackTimer = ZC.ATTACK_RATE; },
             onUpdate(ctx) {
                 if(ctx.player) moveToward(e, ctx.player, ZC.CHASE_SPEED*e.speedMult, ctx.delta);
                 e.attackTimer += ctx.delta;
-                if(e.attackTimer >= ZC.ATTACK_RATE){ e.attackTimer=0; if(ctx.player) ctx.player.takeDamage(ZC.ATTACK_DAMAGE); }
+                if(e.attackTimer >= ZC.ATTACK_RATE){
+                    e.attackTimer = 0;
+                    if(ctx.player) ctx.player.takeDamage(ZC.ATTACK_DAMAGE);
+                }
             },
             transitions: [
                 { to:'CHASE', condition:(ctx)=>!ctx.player||e.distanceTo(ctx.player)>=ZC.ATTACK_RANGE },
@@ -172,10 +188,23 @@ function buildZombieStates(e) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  RUNNER
+//  RUNNER  — faster, more erratic, 14 dmg, instant first hit
 // ─────────────────────────────────────────────────────────────────────────────
 
-const RC = { CHASE_RANGE:500, FORGET_RANGE:700, ATTACK_RANGE:24, WANDER_SPEED:80, CHASE_SPEED:195, ATTACK_DAMAGE:7, ATTACK_RATE:700, MAX_HEALTH:40, RADIUS:9, SCORE:150, ZIG_PERIOD:420, ZIG_AMP:55 };
+const RC = {
+    CHASE_RANGE:   520,
+    FORGET_RANGE:  750,
+    ATTACK_RANGE:  24,
+    WANDER_SPEED:  90,
+    CHASE_SPEED:   240,  // was 195
+    ATTACK_DAMAGE: 14,   // was 7
+    ATTACK_RATE:   600,  // was 700
+    MAX_HEALTH:    55,   // was 40
+    RADIUS:        9,
+    SCORE:         150,
+    ZIG_PERIOD:    320,  // tighter zigzag cycle (was 420)
+    ZIG_AMP:       70,   // wider sweep (was 55)
+};
 
 function buildRunnerStates(e) {
     return buildBaseStates(e, {
@@ -207,7 +236,7 @@ function buildRunnerStates(e) {
             ],
         },
         ATTACK: {
-            onEnter() { e.attackTimer=0; },
+            onEnter() { e.attackTimer = RC.ATTACK_RATE; },  // instant first hit
             onUpdate(ctx) {
                 if(ctx.player) moveToward(e, ctx.player, RC.CHASE_SPEED*e.speedMult, ctx.delta);
                 e.attackTimer += ctx.delta;
@@ -222,10 +251,22 @@ function buildRunnerStates(e) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  BRUTE
+//  BRUTE  — 60 dmg, huge knockback, slightly faster
 // ─────────────────────────────────────────────────────────────────────────────
 
-const BC = { CHASE_RANGE:380, FORGET_RANGE:500, ATTACK_RANGE:46, WANDER_SPEED:25, CHASE_SPEED:52, ATTACK_DAMAGE:25, KNOCKBACK_DIST:120, ATTACK_RATE:1600, MAX_HEALTH:280, RADIUS:24, SCORE:300 };
+const BC = {
+    CHASE_RANGE:    400,
+    FORGET_RANGE:   560,
+    ATTACK_RANGE:   50,
+    WANDER_SPEED:   28,
+    CHASE_SPEED:    60,   // was 52
+    ATTACK_DAMAGE:  60,   // was 25
+    KNOCKBACK_DIST: 180,  // was 120
+    ATTACK_RATE:    1600,
+    MAX_HEALTH:     280,
+    RADIUS:         24,
+    SCORE:          300,
+};
 
 function buildBruteStates(e) {
     return buildBaseStates(e, {
@@ -253,10 +294,9 @@ function buildBruteStates(e) {
             ],
         },
         SLAM: {
-            onEnter() { e.attackTimer=0; e.slamWarned=false; },
+            onEnter() { e.attackTimer=BC.ATTACK_RATE*0.7; e.slamWarned=true; }, // near-instant first slam
             onUpdate(ctx) {
                 e.attackTimer += ctx.delta;
-                if(!e.slamWarned && e.attackTimer > 300) e.slamWarned = true;
                 if(e.attackTimer >= BC.ATTACK_RATE){
                     e.attackTimer=0; e.slamWarned=false;
                     if(ctx.player){
@@ -264,6 +304,7 @@ function buildBruteStates(e) {
                         const dx=ctx.player.x-e.x, dy=ctx.player.y-e.y, dist=Math.hypot(dx,dy)||1;
                         ctx.player.applyKnockback((dx/dist)*BC.KNOCKBACK_DIST, (dy/dist)*BC.KNOCKBACK_DIST);
                     }
+                    setTimeout(() => { e.slamWarned = true; }, 200);
                 }
             },
             transitions: [
@@ -275,7 +316,7 @@ function buildBruteStates(e) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  SPITTER
+//  SPITTER (unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const SPC = { DETECT_RANGE:480, PREFERRED_DIST:280, RETREAT_DIST:160, FORGET_RANGE:700, WANDER_SPEED:35, MOVE_SPEED:70, FIRE_RATE:2200, MAX_HEALTH:70, RADIUS:12, SCORE:200 };
@@ -423,8 +464,8 @@ export class Runner extends EnemyBase {
         if (this.dead) return;
         ctx.save();
         ctx.globalAlpha = this.alpha;
-        this._bobTime += 0.18;
-        const bob = Math.sin(this._bobTime)*1.8;
+        this._bobTime += 0.25; // faster bob to match speed
+        const bob = Math.sin(this._bobTime)*2.2;
         const state = this.fsm.getState();
 
         ctx.beginPath();
@@ -433,20 +474,21 @@ export class Runner extends EnemyBase {
 
         ctx.save();
         ctx.translate(this.x, this.y+bob);
-        ctx.rotate(Math.PI/4);
+        ctx.rotate(Math.PI/4 + this._bobTime * 0.15);
         const s=this.radius*1.35;
         ctx.beginPath(); ctx.rect(-s/2,-s/2,s,s);
-        ctx.fillStyle = state==='ATTACK'?'#e53935' : state==='CHASE'?'#ff7043' : '#ff8f00';
-        ctx.fill(); ctx.strokeStyle='rgba(255,255,255,0.18)'; ctx.lineWidth=1.2; ctx.stroke();
+        ctx.fillStyle = state==='ATTACK'?'#e53935' : state==='CHASE'?'#ff5722' : '#ff8f00';
+        ctx.fill(); ctx.strokeStyle='rgba(255,255,255,0.25)'; ctx.lineWidth=1.2; ctx.stroke();
         ctx.restore();
 
+        // Speed lines — more prominent when chasing
         if(state==='CHASE'||state==='ATTACK'){
-            ctx.strokeStyle='rgba(255,160,0,0.35)'; ctx.lineWidth=1;
-            for(let i=0;i<3;i++){
-                const off=(i-1)*5;
+            ctx.strokeStyle='rgba(255,140,0,0.5)'; ctx.lineWidth=1.5;
+            for(let i=0;i<4;i++){
+                const off=(i-1.5)*4;
                 ctx.beginPath();
-                ctx.moveTo(this.x-this.radius*2.2, this.y+off+bob);
-                ctx.lineTo(this.x-this.radius*1.1, this.y+off+bob);
+                ctx.moveTo(this.x-this.radius*2.8, this.y+off+bob);
+                ctx.lineTo(this.x-this.radius*1.2, this.y+off+bob);
                 ctx.stroke();
             }
         }
@@ -473,8 +515,8 @@ export class Brute extends EnemyBase {
 
         if(slamming){
             const t=(this.attackTimer % BC.ATTACK_RATE)/BC.ATTACK_RATE;
-            ctx.beginPath(); ctx.arc(this.x, this.y, this.radius+10+t*14, 0, Math.PI*2);
-            ctx.strokeStyle=`rgba(255,50,0,${0.6*t})`; ctx.lineWidth=3; ctx.stroke();
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.radius+10+t*18, 0, Math.PI*2);
+            ctx.strokeStyle=`rgba(255,30,0,${0.7*t})`; ctx.lineWidth=4; ctx.stroke();
         }
 
         ctx.beginPath();
@@ -487,12 +529,12 @@ export class Brute extends EnemyBase {
         ctx.fillStyle = state==='SLAM'?'#6a1010' : state==='CHARGE'?'#7b1fa2' : '#4a148c';
         ctx.fill();
         ctx.strokeStyle = slamming?'#ff1744':'rgba(255,255,255,0.2)';
-        ctx.lineWidth   = slamming?2.5:2; ctx.stroke();
+        ctx.lineWidth   = slamming?3:2; ctx.stroke();
 
-        ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=2;
+        ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=2.5;
         ctx.beginPath();
-        ctx.moveTo(this.x-9,this.y-7); ctx.lineTo(this.x-3,this.y-4);
-        ctx.moveTo(this.x+9,this.y-7); ctx.lineTo(this.x+3,this.y-4);
+        ctx.moveTo(this.x-10,this.y-8); ctx.lineTo(this.x-3,this.y-4);
+        ctx.moveTo(this.x+10,this.y-8); ctx.lineTo(this.x+3,this.y-4);
         ctx.stroke();
 
         this._drawCommon(ctx);
@@ -555,12 +597,10 @@ export function rollEnemyType(wave) {
         if (r < 0.90) return 'spitter';
         return 'brute';
     }
-    // Wave 5+: full mix
     if (r < 0.30) return 'zombie';
     if (r < 0.55) return 'runner';
     if (r < 0.78) return 'spitter';
     return 'brute';
 }
 
-// Backwards-compat alias
 export { Zombie as Enemy };
